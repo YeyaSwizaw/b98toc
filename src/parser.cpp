@@ -34,7 +34,7 @@ int Parser::run(int argc, char* argv[]) {
     }
 
     if(verbose) {
-        std::cout << "State Starts:" << std::endl;
+        std::cout << std::endl << "State Starts:" << std::endl;
         for(decltype(stateStarts)::size_type i = 0; i < stateStarts.size(); ++i) {
             std::cout << i << ": (" << stateStarts[i].x << ", " << stateStarts[i].y << ") delta(" << stateStarts[i].dir->dx << ", " << stateStarts[i].dir->dy << ")" << std::endl;
         }

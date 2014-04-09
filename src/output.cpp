@@ -13,9 +13,14 @@ int Parser::generateOutput() {
 int Parser::generateHeader() {
     std::ostringstream content;
 
+    /* Header guard and includes */
     content << "#ifndef BEFUNGE_OUTPUT_H" << std::endl
-            << "#define BEFUNGE_OUTPUT_H" << std::endl << std::endl;
+            << "#define BEFUNGE_OUTPUT_H" << std::endl << std::endl
+            << "#include <stdlib.h>" << std::endl
+            << "#include <stdio.h>" << std::endl << std::endl
+            << "#include \"stack.h\"" << std::endl << std::endl;
 
+    /* State definitions */
     for(decltype(stateStarts)::size_type state = 0; state < stateStarts.size(); ++state) {
         content << "int state" << state << "(Stack* stack);" << std::endl;
     }
@@ -47,6 +52,13 @@ int Parser::generateSource() {
         }
         content << "}" << std::endl << std::endl;
     }
+
+    content << "int main(int argc, char* argv[]) {" << std::endl
+            << "    Stack* stack = stackNew();" << std::endl
+            << "    int ret = state0(stack);" << std::endl
+            << "    stackFree(stack);" << std::endl
+            << "    return ret;" << std::endl
+            << "}" << std::endl;
 
     std::ofstream output(outSource);
 
@@ -80,7 +92,7 @@ int Parser::generateState(std::ostringstream& content, int state) {
             stringmode = !stringmode;
         }
 
-        if(stringmode) {
+        if(stringmode && c != '"') {
             state = stategrid[y][x][dir->index];
             content << "    stackPush(stack, '" << c << "');" << std::endl;
         }
@@ -107,6 +119,10 @@ int Parser::generateState(std::ostringstream& content, int state) {
 
             if(c >= '0' && c <= '9') {
                 content << "    stackPush(stack, " << c << ");" << std::endl;
+            }
+
+            else if(c == '+' || c == '*') {
+                content << "    stackPush(stack, stackPop(stack) " << c << " stackPop(stack));" << std::endl;
             }
 
             else if(c == ':') {
