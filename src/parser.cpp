@@ -147,7 +147,7 @@ int Parser::parse() {
                 dir = &Dir::RIGHT;
             } else if(c == '<') {
                 dir = &Dir::LEFT;
-            } else if(c == '<') {
+            } else if(c == '^') {
                 dir = &Dir::UP;
             } else if(c == 'v') {
                 dir = &Dir::DOWN;
