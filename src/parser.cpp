@@ -137,10 +137,15 @@ int Parser::parse() {
 
     bool bulldozing = false;
     bool stringmode = false;
+    bool getnextchar = false;
     bool nextstate = false;
 
     while(true) {
         char c = codegrid[y][x];
+
+        if(getnextchar) {
+            getnextchar = false;
+        }
 
         if(!stringmode) {
             if(c == '>') {
@@ -158,9 +163,11 @@ int Parser::parse() {
             }
         }
 
-        int& stateHere = stategrid[y][x][dir->index];
+        if(c == '\'') {
+            getnextchar = true;
+        }
 
-        if(c == '"') {
+        else if(c == '"') {
             stringmode = !stringmode;
         }
 
@@ -213,7 +220,7 @@ int Parser::parse() {
             }
         }
         
-        if(stateHere >= 0) {
+        if(stategrid[y][x][dir->index] >= 0) {
             bool starthere = false;
 
             auto& here = stateStarts[stategrid[y][x][dir->index]];
@@ -243,14 +250,14 @@ int Parser::parse() {
                     if(verbose) {
                         std::cout << c << " at (" << x << ", " << y << ") delta(" << dir->dx << ", " << dir->dy << ") -> " << state << std::endl;
                     }
-                    stateHere = state;
+                    stategrid[y][x][dir->index] = state;
                 }
             }
         } else {
             if(verbose) {
                 std::cout << c << " at (" << x << ", " << y << ") delta(" << dir->dx << ", " << dir->dy << ") -> " << state << std::endl;
             }
-            stateHere = state;
+            stategrid[y][x][dir->index] = state;
         }
 
         if(nextstate) {
@@ -282,8 +289,8 @@ int Parser::parse() {
 
             nextstate = false;
         } else {
-            x += (!stringmode && c == '#' ? 2 : 1) * dir->dx;
-            y += (!stringmode && c == '#' ? 2 : 1) * dir->dy;
+            x += (getnextchar || (!stringmode && c == '#') ? 2 : 1) * dir->dx;
+            y += (getnextchar || (!stringmode && c == '#') ? 2 : 1) * dir->dy;
 
             if(x < 0) {
                 x += maxX;

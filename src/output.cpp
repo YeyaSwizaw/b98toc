@@ -98,6 +98,7 @@ int Parser::generateState(std::ostringstream& content, int state) {
     bool intcreated = false;
     bool int2created = false;
     bool stringmode = false;
+    bool getnextchar = false;
 
     while(true) {
         char& c = codegrid[y][x];
@@ -131,7 +132,11 @@ int Parser::generateState(std::ostringstream& content, int state) {
                 return 0;
             }
 
-            if(c >= '0' && c <= '9') {
+            if (c == '\'') {
+                getnextchar = true;
+            }
+
+            else if(c >= '0' && c <= '9') {
                 content << "    stackPush(stack, " << c << ");" << std::endl;
             }
 
@@ -140,7 +145,36 @@ int Parser::generateState(std::ostringstream& content, int state) {
             }
 
             else if(c == '-' || c == '/' || c == '%' || c == '+' || c == '*' ) {
-                content << "    stackPush(stack, stackPop(stack) " << c << " stackPop(stack));" << std::endl;
+                content << "    ";
+
+                if(!intcreated) {
+                    content << "int ";
+                    intcreated = true;
+                }
+                
+                content << "val = stackPop(stack);" << std::endl
+                        << "    stackPush(stack, stackPop(stack) " << c << " val);" << std::endl;
+            }
+
+            else if(c == '\\') {
+                content << "    ";
+                if(!intcreated) {
+                    content << "int ";
+                    intcreated = true;
+                }
+                content << "val = stackPop(stack);" << std::endl << "    ";
+                if(!int2created) {
+                    content << "int ";
+                    int2created = true;
+                }
+                content << "val2 = stackPop(stack);" << std::endl
+                        << "    stackPush(stack, val);" << std::endl
+                        << "    stackPush(stack, val2);" << std::endl;
+
+            }
+
+            else if(c == '$') {
+                content << "    stackPop(stack);" << std::endl;
             }
 
             else if(c == ':') {
@@ -160,6 +194,10 @@ int Parser::generateState(std::ostringstream& content, int state) {
                 content << "    if(putchar(stackPop(stack)) == '\\n') {" << std::endl
                         << "        fflush(stdout);" << std::endl
                         << "    }" << std::endl;
+            }
+
+            else if(c == '.') {
+                content << "    printf(\"%d\", stackPop(stack));" << std::endl;
             }
 
             else if(c == '~') {
@@ -239,13 +277,13 @@ int Parser::generateState(std::ostringstream& content, int state) {
                     int2created = true;
                 }
                 content << "val2 = stackPop(stack);" << std::endl
-                        << "if(val == val2) {" << std::endl
-                        << "    return state" << fdstate << "(stack);" << std::endl
-                        << "} else if(val < val2) {" << std::endl
-                        << "    return state" << ltstate << "(stack);" << std::endl
-                        << "} else {" << std::endl
-                        << "    return state" << rtstate << "(stack);" << std::endl
-                        << "}" << std::endl;
+                        << "    if(val == val2) {" << std::endl
+                        << "        return state" << fdstate << "(stack);" << std::endl
+                        << "    } else if(val < val2) {" << std::endl
+                        << "        return state" << rtstate << "(stack);" << std::endl
+                        << "    } else {" << std::endl
+                        << "        return state" << ltstate << "(stack);" << std::endl
+                        << "    }" << std::endl;
 
                 break;
             }
@@ -256,19 +294,61 @@ int Parser::generateState(std::ostringstream& content, int state) {
             }
         }
 
-        x += (!stringmode && c == '#' ? 2 : 1) * dir->dx;
-        y += (!stringmode && c == '#' ? 2 : 1) * dir->dy;
+        if(getnextchar) {
+            x += dir->dx;
+            y += dir->dy;
 
-        if(x < 0) {
-            x += maxX;
-        } else if(x >= maxX) {
-            x -= maxX;
-        }
+            if(x < 0) {
+                x += maxX;
+            } else if(x >= maxX) {
+                x -= maxX;
+            }
       
-        if(y < 0) {
-            y += maxY;
-        } else if(y >= maxY) {
-            y -= maxY;
+            if(y < 0) {
+                y += maxY;
+            } else if(y >= maxY) {
+                y -= maxY;
+            }
+            
+            char& c = codegrid[y][x];
+
+            content << "    stackPush(stack, '";
+            if(c == '\'') {
+                content << '\\';
+            }
+            content << c << "');" << std::endl;
+
+            x += dir->dx;
+            y += dir->dy;
+
+            if(x < 0) {
+                x += maxX;
+            } else if(x >= maxX) {
+                x -= maxX;
+            }
+      
+            if(y < 0) {
+                y += maxY;
+            } else if(y >= maxY) {
+                y -= maxY;
+            }
+
+            getnextchar = false;
+        } else {
+            x += (!stringmode && c == '#' ? 2 : 1) * dir->dx;
+            y += (!stringmode && c == '#' ? 2 : 1) * dir->dy;
+    
+            if(x < 0) {
+                x += maxX;
+            } else if(x >= maxX) {
+                x -= maxX;
+            }
+      
+            if(y < 0) {
+                y += maxY;
+            } else if(y >= maxY) {
+                y -= maxY;
+            }
         }
     }
 
