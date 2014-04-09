@@ -170,7 +170,7 @@ int Parser::parse() {
             } 
 
             else if(c == '_' || c == '|') {
-                if(!bulldozing) {
+                //if(!bulldozing) {
                     bool can = true;
                     for(auto& loc : stateStarts) {
                         if(x == loc.x && y == loc.y) {
@@ -187,7 +187,7 @@ int Parser::parse() {
                             std::cout << "Added _ at (" << x << ", " << y << ") to state queue" << std::endl;
                         }
                     }
-                }
+                //}
 
                 nextstate = true;
             }
