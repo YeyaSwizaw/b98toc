@@ -1,82 +1,52 @@
-#ifndef B98COMPILER_PARSER_HPP
-#define B98COMPILER_PARSER_HPP
+#ifndef B98TOC_PARSER_HPP
+#define B98TOC_PARSER_HPP
+
+#include <tclap/CmdLine.h>
 
 #include "defines.hpp"
+#include "dir.hpp"
 
-#include <algorithm>
+#include <utility>
 #include <iostream>
 #include <fstream>
-#include <vector>
 #include <string>
-#include <sstream>
+#include <vector>
+#include <queue>
+
 
 B98_NS_BEGIN
 
-struct StateInfo {
-public:
-	StateInfo(int state, int xd, int yd)
-		: state(state), xd(xd), yd(yd) { }
-	
-	int state, xd, yd;
-
-}; // struct StateInfo;
-
-struct StateInfo2 : public StateInfo {
-public:
-	StateInfo2(int state, int xd, int yd, int xPos, int yPos)
-		: StateInfo(state, xd, yd), xPos(xPos), yPos(yPos) { }
-
-	int xPos, yPos;
-
-}; // struct StateInfo2 : public StateInfo;
-
 class Parser {
 public:
-	Parser();
+    Parser();
 
-	int loadFile(std::string filename);
-
-	void parse();
+    int run(int argc, char* argv[]);
 
 private:
-	int xPos, yPos, xd, yd;
+    struct Location {
+        int x, y;
+        Dir* dir;
+    };
 
-	int currState, nextState;
-	bool bulldozing;
+    bool verbose;
 
-	std::vector<std::vector<char>> codegrid;
-	std::vector<std::vector<std::vector<StateInfo>>> stateinfogrid;
+    std::string inFile, outSource, outHeader;
 
-	std::vector<StateInfo2> stateQueue;
+    std::vector<std::vector<char>> codegrid;
+    std::vector<std::vector<std::vector<int>>> stategrid;
 
-	std::vector<StateInfo2> stateStartPoints;
+    std::vector<Location> stateStarts;
 
-	bool parseStep(char c);
-	bool setNextState();
+    int parseArgs(int argc, char* argv[]);
+    int readFile();
+    int parse();
 
-	void turnLeft();
-	void turnRight();
-
-	int bulldozeIsValid();
-
-	bool stateHasNoStart(int state);
-	bool startPointHere(int state);
-
-	bool anyStartHere();
-	bool anyStartButCurrent();
-
-	int startAtDelta(int dx, int dy);
-	int startHere();
-
-	int safeAddDelta(int pos, int d, int max);
-
-	void generateOutput();
-
-	void generateHeader();
-	void generateSource();
-
-}; // class Parser;
+    int generateOutput();
+    int generateHeader();
+    int generateSource();
+    int generateState(std::ostringstream& content, int state);
+};
 
 B98_NS_END
 
-#endif // B98COMPILER_PARSER_HPP
+#endif

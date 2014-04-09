@@ -2,317 +2,280 @@
 
 B98_NS_BEGIN
 
-Parser::Parser()
-	: xPos(0), yPos(0), xd(1), yd(0),
-	  currState(0), nextState(1),
-	  bulldozing(false) {
-
-} // Parser::Parser();
-
-int Parser::loadFile(std::string filename) {
-	std::ifstream srcfile(filename);
-	if(!srcfile) {
-		std::cerr << B98_NOFILE_MSG(filename);
-		return -1;
-
-	} // if(!srcfile);
-
-	/* Load code into vectors */
-	char ch;
-	std::vector<char>::size_type maxsize = 0;
-	codegrid.push_back(std::vector<char>());
-	while(srcfile >> std::noskipws >> ch) {
-		if(ch == '\n') {
-			maxsize = std::max(maxsize, codegrid.back().size());
-			codegrid.push_back(std::vector<char>());
-
-		} // if(ch == '\n');
-		else {
-			codegrid.back().push_back(ch);
-
-		} // else;
-
-	} // while(srcfile >> std::noskipws >> ch);
-
-	/* Remove extra newline */
-	if(codegrid.back().empty()) {
-		codegrid.pop_back();
-
-	} // if(codegrid.back().empty());
-
-	/* Pad vectors to same length; initialise info vector */
-	for(auto& v : codegrid) {
-		if(v.size() < maxsize) {
-			v.resize(maxsize, ' ');
-
-		} // if(v.size() < maxsize);
-
-		stateinfogrid.push_back(std::vector<std::vector<StateInfo>>());
-		stateinfogrid.back().resize(maxsize);
-
-	} // for(auto& v : codegrid);
-
-	srcfile.close();
-	return 0;
-
-} // int Parser::loadFile(std::string filename);
-
-void Parser::parse() {
-	int xMax = codegrid[0].size();
-	int yMax = codegrid.size();
-
-	// std::cerr << xMax << " x " << yMax << "\n";
-
-	// std::cerr << xPos << ", " << yPos << ": ";
-	
-	while(parseStep(codegrid[yPos][xPos])) {
-		xPos += xd;
-		yPos += yd;
-
-		if(xPos < 0) {
-			xPos = xMax + xPos;
-
-		} // if(xPos < 0);
-		else if(xPos >= xMax) {
-			xPos = xPos - xMax;
-
-		} // else if(xPos >= xMax);
-
-		if(yPos < 0) {
-			yPos = yMax + yPos;
-
-		} // if(yPos < 0);
-		else if(yPos >= yMax) {
-			yPos = yPos - yMax;
-
-		} // else if(yPos >= yMax);
-
-		if(xd > 0) {
-			xd = 1;
-
-		} // if(xd > 0);
-		else if(xd < 0) {
-			xd = -1;
-
-		} // else if(xd < 0);
-
-		if(yd > 0) {
-			yd = 1;
-
-		} // if(yd > 0);
-		else if(yd < 0) {
-			yd = -1;
-
-		} // else if(yd < 0);
-
-		// std::cerr << xPos << ", " << yPos << ": ";
-
-	} // while(parseStep(codegrid[xPos][yPos]));
-
-	std::sort(stateStartPoints.begin(), stateStartPoints.end(), [](StateInfo2 a, StateInfo2 b){ return (a.state < b.state); });
-
-	std::cerr << "\n";
-
-	for(auto& info : stateStartPoints) {
-		std::cerr << "State " << info.state << " (" << info.xPos << ", " << info.yPos << ") -> (" << info.xd << ", " << info.yd << ")\n";
-
-	} // for(auto& info : stateStartPoints);
-
-	std::cerr << "\n";
-
-	for(auto& v : stateinfogrid) {
-		for(auto& v2 : v) {
-			if(v2.empty()) {
-				std::cerr << ' ';
-
-			} // if(v2.empty());
-			else {
-				std::cerr << v2.back().state;
-
-			} // else;
-
-		} // for(auto& v2 : v);
-
-		std::cerr << '\n';
-
-	} // for(auto& info : stateinfogrid);
-
-	generateOutput();
-
-} // void Parser::parse();
-
-bool Parser::parseStep(char c) {
-	if(c == '>') {
-		xd = 1;
-		yd = 0;
-
-	} // if(c == '>');
-	else if(c == '<') {
-		xd = -1;
-		yd = 0;
-
-	} // else if(c == '<');
-	else if(c == '^') {
-		xd = 0;
-		yd = -1;
-
-	} // else if(c == '^');
-	else if(c == 'v') {
-		xd = 0;
-		yd = 1;
-
-	} // else if(c == 'v');
-	else if(c == '[') {
-		turnLeft();
-
-	} // else if(c == '[');
-	else if(c == ']') {
-		turnRight();
-
-	} // else if(c == ']');
-	else if(c == '#') {
-		xd *= 2;
-		yd *= 2;
-
-	} // else if(c == '#');
-
-	if(!bulldozing) {
-		int state = bulldozeIsValid();
-		if(state != nextState) {
-			for(auto& info : stateinfogrid[yPos][xPos]) {
-				if(info.state == state) {
-					std::cerr << "Char '" << c << "' at (" << xPos << ", " << yPos << "): Bulldozed from " << info.state << " to " << nextState << "\n";
-
-					currState = nextState;
-					nextState++;
-
-					info.state = currState;
-
-					if(stateHasNoStart(currState)) {
-						stateStartPoints.push_back(StateInfo2(currState, xd, yd, xPos, yPos));
-
-					} // if(stateHasNoStart(currState));
-
-					bulldozing = true;
-
-				} // if(xd == info.xd && yd == info.yd);
-
-			} // for(auto& info : stateinfogrid[yPos][xPos]);
-
-		} // if(bulldozeIsValid() != nextState);
-
-		if(!bulldozing) {
-			if(!anyStartHere()) {
-				stateinfogrid[yPos][xPos].push_back(StateInfo(currState, xd, yd));
-
-				std::cerr << "Char '" << c << "' at (" << xPos << ", " << yPos << "): State " << currState << " (" << xd << ", " << yd << ")\n";
-
-				if(stateHasNoStart(currState)) {
-					stateStartPoints.push_back(StateInfo2(currState, xd, yd, xPos, yPos));
-
-				} // if(stateHasNoStart(currState));
-
-			} // if(!anyStartHere());
-
-		} // if(!bulldozing);
-
-	} // if(!bulldozing);
-	else {
-		for(auto& info : stateinfogrid[yPos][xPos]) {
-			if(xd == info.xd && yd == info.yd) {
-				std::cerr << "Char '" << c << "' at (" << xPos << ", " << yPos << "): Bulldozed from " << info.state << " to " << currState << "\n";
-
-				info.state = currState;
-
-			} // if(xd == info.xd && yd == info.yd);
-
-		} // for(auto& info : stateinfogrid[yPos][xPos]);
-
-	} // else;
-
-	if(c == '@') {
-		bulldozing = false;
-
-		if(!setNextState()) {
-			return false;
-
-		} // if(!setNextState());
-
-	} // if(c == '@');
-
-	else if(c == '_' || c == '|') {
-		if(!bulldozing) {
-			if(c == '_') {
-				stateQueue.push_back(StateInfo2(nextState, -1, 0, xPos, yPos));
-				stateQueue.push_back(StateInfo2(nextState + 1, 1, 0, xPos, yPos));
-
-			} // if(c == '_');
-			else {
-				stateQueue.push_back(StateInfo2(nextState, 0, -1, xPos, yPos));
-				stateQueue.push_back(StateInfo2(nextState + 1, 0, 1, xPos, yPos));
-
-			} // else;
-
-			nextState += 2;
-
-		} // if(!bulldozing);
-
-		bulldozing = false;
-
-		if(!setNextState()) {
-			return false;
-
-		} // if(!setNextState());
-
-	} // else if(c == '_');
-
-	else if(c == 'w') {
-		if(!bulldozing) {
-			stateQueue.push_back(StateInfo2(nextState, xd, yd, xPos, yPos));
-
-			turnLeft();
-			stateQueue.push_back(StateInfo2(nextState + 1, xd, yd, xPos, yPos));
-
-			turnRight();
-			turnRight();
-			stateQueue.push_back(StateInfo2(nextState + 2, xd, yd, xPos, yPos));
-
-			nextState += 3;
-
-		} // if(!bulldozing);
-
-		bulldozing = false;
-
-		if(!setNextState()) {
-			return false;
-
-		} // if(!setNextState());
-
-	} // else if(c == 'w');
-
-	// std::cerr << c << "\n";
-
-	return true;
-
-} // bool Parser::parseStep(char c);
+Parser::Parser() {};
+
+int Parser::run(int argc, char* argv[]) {
+    if(parseArgs(argc, argv) < 0) {
+        return -1;
+    }
+
+    if(readFile() < 0) {
+        return -1;
+    }
+
+    if(verbose) {
+        std::cout << "Input File:   " << inFile << std::endl
+                  << "Output Files: " << outSource << ", " << outHeader << std::endl << std::endl;
+
+        std::cout << "File Contents:" << std::endl;
+        for(decltype(codegrid)::size_type y = 0; y < codegrid.size(); ++y) {
+            for(decltype(codegrid)::size_type x = 0; x < codegrid[y].size(); ++x) {
+                std::cout << codegrid[y][x];
+            }
+
+            std::cout << std::endl;
+        }
+
+        std::cout << std::endl;
+    }
+
+    if(parse() < 0) {
+        return -1;
+    }
+
+    if(verbose) {
+        std::cout << "State Starts:" << std::endl;
+        for(decltype(stateStarts)::size_type i = 0; i < stateStarts.size(); ++i) {
+            std::cout << i << ": (" << stateStarts[i].x << ", " << stateStarts[i].y << ") delta(" << stateStarts[i].dir->dx << ", " << stateStarts[i].dir->dy << ")" << std::endl;
+        }
+        std::cout << std::endl;
+    }
+
+    if(generateOutput() < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int Parser::parseArgs(int argc, char* argv[]) {
+    try {
+        TCLAP::CmdLine cmd("Befunge98 to C parser");
+
+        TCLAP::SwitchArg verboseArg(
+            "v", "verbose",
+            "Produce console output while parsing");
+
+        TCLAP::ValueArg<std::string> outFileArg(
+            "o", "output", 
+            "The name for the produced .c and .h files", 
+            false, "output", 
+            "filename without extension");
+    
+        TCLAP::UnlabeledValueArg<std::string> inFileArg(
+            "input",
+            "The filename to read input from",
+            true, "",
+            "filename");
+
+        cmd.add(verboseArg);
+        cmd.add(outFileArg);
+        cmd.add(inFileArg);
+        cmd.parse(argc, argv);
+
+        verbose = verboseArg.getValue();
+        inFile = inFileArg.getValue();
+        outSource = outFileArg.getValue() + ".c";
+        outHeader = outFileArg.getValue() + ".h";
+    }
+    catch(TCLAP::ArgException& e) {
+        std::cerr << "Argument Error (Arg " << e.argId() << ")" << std::endl << e.error() << std::endl;
+        return -1;
+    }
+
+    return 0;
+}
+
+int Parser::readFile() {
+    std::ifstream srcfile(inFile);
+    if(!srcfile) {
+        std::cerr << "Unable to read file: " << inFile << std::endl;
+        return -1;
+    }
+
+    decltype(codegrid)::size_type maxsize = 0;
+    codegrid.push_back(std::vector<char>());
+
+    char ch;
+    while(srcfile >> std::noskipws >> ch) {
+        if(ch == '\n') {
+            maxsize = std::max(maxsize, codegrid.back().size());
+            codegrid.push_back(std::vector<char>());
+        } else {
+            codegrid.back().push_back(ch);
+        }
+    }
+
+    srcfile.close();
+
+    if(codegrid.back().empty()) {
+        codegrid.pop_back();
+    }
+
+    for(auto& v : codegrid) {
+        v.resize(maxsize, ' ');
+
+        stategrid.push_back(std::vector<std::vector<int>>());
+        stategrid.back().resize(maxsize, { -1, -1, -1, -1 });
+    }
+
+    return 0;
+}
+
+int Parser::parse() {
+    Dir* dir = &Dir::RIGHT;
+    int x = 0;
+    int y = 0;
+
+    int maxX = codegrid[0].size();
+    int maxY = codegrid.size();
+
+    int state = 0;
+    stateStarts.push_back({-1, 0, &Dir::RIGHT});
+
+    std::queue<std::pair<Location, bool>> stateQueue;
+
+    bool bulldozing = false;
+    bool stringmode = false;
+    bool nextstate = false;
+
+    while(true) {
+        char c = codegrid[y][x];
+
+        if(!stringmode) {
+            if(c == '>') {
+                dir = &Dir::RIGHT;
+            } else if(c == '<') {
+                dir = &Dir::LEFT;
+            } else if(c == '<') {
+                dir = &Dir::UP;
+            } else if(c == 'v') {
+                dir = &Dir::DOWN;
+            } else if(c == '[') {
+                dir = dir->left;
+            } else if(c == ']') {
+                dir = dir->right;
+            }
+        }
+
+        int& stateHere = stategrid[y][x][dir->index];
+
+        if(c == '"') {
+            stringmode = !stringmode;
+        }
+
+        else if(!stringmode) {
+            if(c == '@') {
+                nextstate = true;
+            } 
+
+            else if(c == '_' || c == '|') {
+                if(!bulldozing) {
+                    bool can = true;
+                    for(auto& loc : stateStarts) {
+                        if(x == loc.x && y == loc.y) {
+                            can = false;
+                            break;
+                        }
+                    }
+
+                    if(can) {
+                        stateQueue.push({{x, y, c == '_' ? &Dir::LEFT : &Dir::UP}, false});
+                        stateQueue.push({{x, y, c == '_' ? &Dir::RIGHT : &Dir::DOWN}, false});
+
+                        if(verbose) {
+                            std::cout << "Added _ at (" << x << ", " << y << ") to state queue" << std::endl;
+                        }
+                    }
+                }
+
+                nextstate = true;
+            }
+        }
+        
+        if(!bulldozing && stateHere >= 0) {
+            bool starthere = false;
+
+            auto& here = stateStarts[stategrid[y][x][dir->index]];
+
+            if(x - here.dir->dx == here.x
+                && y - here.dir->dy == here.y
+                && dir->index == here.dir->index) {
+
+                starthere = true;
+            }
+
+            if(starthere) {
+                nextstate = true;
+            }
+
+            else {
+                if(!bulldozing) {
+                    if(verbose) {
+                        std::cout << "Added bulldozer at (" << x << ", " << y << ") to state queue" << std::endl;
+
+                    }
+                    stateQueue.push({{x - dir->dx, y - dir->dy, dir}, true});
+                    nextstate = true;
+                }
+            }
+        }
+
+        //if(bulldozing || stateHere < 0) {
+        else {
+            if(verbose) {
+                std::cout << c << " at (" << x << ", " << y << ") delta(" << dir->dx << ", " << dir->dy << ") -> " << state << std::endl;
+            }
+            stateHere = state;
+        }
+
+        if(nextstate) {
+            if(stateQueue.empty()) {
+                break;
+            }
+
+            auto& next = stateQueue.front();
+            x = next.first.x + next.first.dir->dx;
+            y = next.first.y + next.first.dir->dy;
+            dir = next.first.dir;
+            bulldozing = next.second;
+
+            if(x < 0) {
+                x += maxX;
+            } else if(x >= maxX) {
+                x -= maxX;
+            }
+
+            if(y < 0) {
+                y += maxY;
+            } else if(y >= maxY) {
+                y -= maxY;
+            }
+    
+            stateStarts.push_back(std::move(next.first));
+            stateQueue.pop();
+            state++;
+
+            nextstate = false;
+        } else {
+            x += (!stringmode && c == '#' ? 2 : 1) * dir->dx;
+            y += (!stringmode && c == '#' ? 2 : 1) * dir->dy;
+
+            if(x < 0) {
+                x += maxX;
+            } else if(x >= maxX) {
+                x -= maxX;
+            }
+
+            if(y < 0) {
+                y += maxY;
+            } else if(y >= maxY) {
+                y -= maxY;
+            }
+        }
+    }
+
+    return 0;
+}
 
 B98_NS_END
-
-int main(int argc, char* argv[]) {
-	if(argc < 2) {
-		std::cerr << B98_USAGE_MSG;
-		return -1;
-
-	} // if(argc < 2);
-
-	b98::Parser p;
-	if(p.loadFile(argv[1]) < 0) {
-		return -1;
-
-	} // if(p.loadFile(argv[1]) < 0);
-	
-	p.parse();
-
-	return 0;
-
-} // int main(int argc, char* argv[]);
