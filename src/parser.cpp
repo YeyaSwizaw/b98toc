@@ -170,30 +170,50 @@ int Parser::parse() {
             } 
 
             else if(c == '_' || c == '|') {
-                //if(!bulldozing) {
-                    bool can = true;
-                    for(auto& loc : stateStarts) {
-                        if(x == loc.x && y == loc.y) {
-                            can = false;
-                            break;
-                        }
+                bool can = true;
+                for(auto& loc : stateStarts) {
+                    if(x == loc.x && y == loc.y) {
+                        can = false;
+                        break;
                     }
+                }
 
-                    if(can) {
-                        stateQueue.push({{x, y, c == '_' ? &Dir::LEFT : &Dir::UP}, false});
-                        stateQueue.push({{x, y, c == '_' ? &Dir::RIGHT : &Dir::DOWN}, false});
+                if(can) {
+                    stateQueue.push({{x, y, c == '_' ? &Dir::LEFT : &Dir::UP}, false});
+                    stateQueue.push({{x, y, c == '_' ? &Dir::RIGHT : &Dir::DOWN}, false});
 
-                        if(verbose) {
-                            std::cout << "Added _ at (" << x << ", " << y << ") to state queue" << std::endl;
-                        }
+                    if(verbose) {
+                        std::cout << "Added " << c << " at (" << x << ", " << y << ") to state queue" << std::endl;
                     }
-                //}
+                }
+
+                nextstate = true;
+            }
+
+            else if(c == 'w') {
+                bool can = true;
+                for(auto& loc : stateStarts) {
+                    if(x == loc.x && y == loc.y) {
+                        can = false;
+                        break;
+                    }
+                }
+
+                if(can) {
+                    stateQueue.push({{x, y, dir}, false});
+                    stateQueue.push({{x, y, dir->left}, false});
+                    stateQueue.push({{x, y, dir->right}, false});
+
+                    if(verbose) {
+                        std::cout << "Added w at (" << x << ", " << y << ") to state queue" << std::endl;
+                    }
+                }
 
                 nextstate = true;
             }
         }
         
-        if(!bulldozing && stateHere >= 0) {
+        if(stateHere >= 0) {
             bool starthere = false;
 
             auto& here = stateStarts[stategrid[y][x][dir->index]];
@@ -203,13 +223,15 @@ int Parser::parse() {
                 && dir->index == here.dir->index) {
 
                 starthere = true;
+
+                if(verbose) {
+                    std::cout << "Met start of state " << stategrid[y][x][dir->index] << " at (" << x << ", " << y << ")" << std::endl;
+                }
             }
 
             if(starthere) {
                 nextstate = true;
-            }
-
-            else {
+            } else {
                 if(!bulldozing) {
                     if(verbose) {
                         std::cout << "Added bulldozer at (" << x << ", " << y << ") to state queue" << std::endl;
@@ -217,12 +239,14 @@ int Parser::parse() {
                     }
                     stateQueue.push({{x - dir->dx, y - dir->dy, dir}, true});
                     nextstate = true;
+                } else {
+                    if(verbose) {
+                        std::cout << c << " at (" << x << ", " << y << ") delta(" << dir->dx << ", " << dir->dy << ") -> " << state << std::endl;
+                    }
+                    stateHere = state;
                 }
             }
-        }
-
-        //if(bulldozing || stateHere < 0) {
-        else {
+        } else {
             if(verbose) {
                 std::cout << c << " at (" << x << ", " << y << ") delta(" << dir->dx << ", " << dir->dy << ") -> " << state << std::endl;
             }

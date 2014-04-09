@@ -76,13 +76,27 @@ int Parser::generateSource() {
 int Parser::generateState(std::ostringstream& content, int state) {
     auto& start = stateStarts[state];
     Dir* dir = start.dir;
-    int x = start.x + dir->dx;
-    int y = start.y + dir->dy;
 
     int maxX = codegrid[0].size();
     int maxY = codegrid.size();
 
+    int x = start.x + dir->dx;
+    int y = start.y + dir->dy;
+
+    if(x < 0) {
+        x += maxX;
+    } else if(x >= maxX) {
+        x -= maxX;
+    }
+  
+    if(y < 0) {
+            y += maxY;
+    } else if(y >= maxY) {
+        y -= maxY;
+    }
+
     bool intcreated = false;
+    bool int2created = false;
     bool stringmode = false;
 
     while(true) {
@@ -121,7 +135,11 @@ int Parser::generateState(std::ostringstream& content, int state) {
                 content << "    stackPush(stack, " << c << ");" << std::endl;
             }
 
-            else if(c == '+' || c == '*') {
+            else if(c >= 'a' && c <= 'f') {
+                content << "    stackPush(stack, 0x" << c << ");" << std::endl;
+            }
+
+            else if(c == '-' || c == '/' || c == '%' || c == '+' || c == '*' ) {
                 content << "    stackPush(stack, stackPop(stack) " << c << " stackPop(stack));" << std::endl;
             }
 
@@ -142,6 +160,11 @@ int Parser::generateState(std::ostringstream& content, int state) {
                 content << "    if(putchar(stackPop(stack)) == '\\n') {" << std::endl
                         << "        fflush(stdout);" << std::endl
                         << "    }" << std::endl;
+            }
+
+            else if(c == '~') {
+                content << "    stackPush(stack, getchar());" << std::endl;
+
             }
 
             else if(c == '_' || c == '|') {
@@ -172,6 +195,59 @@ int Parser::generateState(std::ostringstream& content, int state) {
                         << "    }" << std::endl;
 
                 return 0;
+            }
+
+            else if(c == 'w') {
+                decltype(stateStarts)::size_type fdstate = 0;
+                for(; fdstate < stateStarts.size(); ++fdstate) {
+                    if(x == stateStarts[fdstate].x 
+                        && y == stateStarts[fdstate].y 
+                        && stateStarts[fdstate].dir->index == dir->index) {
+                        
+                        break;
+                    }
+                }
+
+                decltype(stateStarts)::size_type ltstate = 0;
+                for(; ltstate < stateStarts.size(); ++ltstate) {
+                    if(x == stateStarts[ltstate].x 
+                        && y == stateStarts[ltstate].y 
+                        && stateStarts[ltstate].dir->index == dir->left->index) {
+                        
+                        break;
+                    }
+                }
+
+                decltype(stateStarts)::size_type rtstate = 0;
+                for(; rtstate < stateStarts.size(); ++rtstate) {
+                    if(x == stateStarts[rtstate].x 
+                        && y == stateStarts[rtstate].y 
+                        && stateStarts[rtstate].dir->index == dir->right->index) {
+                        
+                        break;
+                    }
+                }
+
+                content << "    ";
+                if(!intcreated) {
+                    content << "int ";
+                    intcreated = true;
+                }
+                content << "val = stackPop(stack);" << std::endl << "    ";
+                if(!int2created) {
+                    content << "int ";
+                    int2created = true;
+                }
+                content << "val2 = stackPop(stack);" << std::endl
+                        << "if(val == val2) {" << std::endl
+                        << "    return state" << fdstate << "(stack);" << std::endl
+                        << "} else if(val < val2) {" << std::endl
+                        << "    return state" << ltstate << "(stack);" << std::endl
+                        << "} else {" << std::endl
+                        << "    return state" << rtstate << "(stack);" << std::endl
+                        << "}" << std::endl;
+
+                break;
             }
 
             else if(c == '@') {
