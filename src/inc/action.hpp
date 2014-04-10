@@ -10,7 +10,15 @@ B98_NS_BEGIN
 
 class Action {
 public:
+    Action(bool number = false, bool sum = false);
+
     virtual ~Action() = default;
+
+    virtual bool isNumber();
+    virtual bool isArith();
+
+    virtual int getNumber();
+    virtual char getArith();
 
     virtual std::vector<int>& getLinkedStates();
     virtual void setLinkedState(int index, int state);
@@ -19,6 +27,7 @@ public:
 
 protected:
     std::vector<int> linkedStates;
+    bool number, arith;
 };
 
 class PushCharAction : public Action {
@@ -33,17 +42,21 @@ private:
 
 class PushIntAction : public Action {
 public:
-    PushIntAction(char c);
+    PushIntAction(int c);
+
+    virtual int getNumber();
 
     virtual void output(std::ostream& out, bool& int1, bool& int2);
 
 private:
-    char c;
+    int c;
 };
 
 class PushHexAction : public Action {
 public:
     PushHexAction(char c);
+
+    virtual int getNumber();
 
     virtual void output(std::ostream& out, bool& int1, bool& int2);
 
@@ -54,6 +67,8 @@ private:
 class ArithmeticAction : public Action {
 public:
     ArithmeticAction(char c);
+
+    virtual char getArith();
 
     virtual void output(std::ostream& out, bool& int1, bool& int2);
 

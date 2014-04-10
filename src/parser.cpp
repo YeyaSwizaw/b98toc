@@ -45,7 +45,7 @@ int Parser::run(int argc, char* argv[]) {
         return -1;
     }
 
-    if(opt) {
+    if(bypass || eval) {
         if(optimize() < 0) {
             return -1;
         }
@@ -66,9 +66,14 @@ int Parser::parseArgs(int argc, char* argv[]) {
             "v", "verbose",
             "Produce console output while parsing");
 
-        TCLAP::SwitchArg optArg(
-            "n", "no-optimize",
-            "Don't run the optimisation step (removes empty states)",
+        TCLAP::SwitchArg bypassArg(
+            "", "no-bypasss",
+            "Don't optimize by bypassing empty states",
+            true);
+
+        TCLAP::SwitchArg evalArg(
+            "", "no-eval",
+            "Don't optimize by evaluating constants",
             true);
 
         TCLAP::ValueArg<std::string> outFileArg(
@@ -84,13 +89,15 @@ int Parser::parseArgs(int argc, char* argv[]) {
             "filename");
 
         cmd.add(verboseArg);
-        cmd.add(optArg);
+        cmd.add(bypassArg);
+        cmd.add(evalArg);
         cmd.add(outFileArg);
         cmd.add(inFileArg);
         cmd.parse(argc, argv);
 
         verbose = verboseArg.getValue();
-        opt = optArg.getValue();
+        bypass = bypassArg.getValue();
+        eval = evalArg.getValue();
         inFile = inFileArg.getValue();
         outSource = outFileArg.getValue() + ".c";
         outHeader = outFileArg.getValue() + ".h";
@@ -410,7 +417,7 @@ int Parser::parseState(int state) {
             }
 
             else if(c >= '0' && c <= '9') {
-                parsedStates.back().push_back(new PushIntAction(c));
+                parsedStates.back().push_back(new PushIntAction(c - '0'));
             }
 
             else if(c >= 'a' && c <= 'f') {
@@ -490,32 +497,148 @@ int Parser::optimize() {
 
     }
 
-    int i = 0;
-    for(auto& state : parsedStates) {
-        if(state.canBeBypassed()) {
-            int s = i;
-            do {
-                s = parsedStates[s][0]->getLinkedStates()[0];
-            } while(parsedStates[s].canBeBypassed());
-            state.setBypass(s);
+    auto attemptEval = [this](State& state, int i) {
+        std::deque<int> stack;
+        stack.push_front(state[i]->getNumber());
 
-            if(verbose) {
-                std::cout << "Adding state bypass: " << i << " -> " << s << std::endl;
+        bool done = false;
+
+        int i2 = i + 1;
+        while(i2 < state.size() - 1) {
+            if(state[i2]->isNumber()) {
+                stack.push_front(state[i2]->getNumber());
+            } else {
+                if(state[i2]->isArith()) {
+                    if(stack.size() >= 2) {
+                        char c = state[i2]->getArith();
+                        if(c == '*') {
+                            int v1 = stack.front();
+                            stack.pop_front();
+
+                            if(verbose) {
+                                std::cout << "Evaluating " << stack.front() << " * " << v1 << " = " << (stack.front() * v1) << std::endl;
+                            }
+
+                            stack.front() *= v1;
+                            done = true;
+                        }  
+                        
+                        else if(c == '+') {
+                            int v1 = stack.front();
+                            stack.pop_front();
+
+                            if(verbose) {
+                                std::cout << "Evaluating " << stack.front() << " + " << v1 << " = " << (stack.front() + v1) << std::endl;
+                            }
+
+                            stack.front() += v1;
+                            done = true;
+
+                        } 
+                        
+                        else if(c == '/') {
+                            int v1 = stack.front();
+                            stack.pop_front();
+
+                            if(verbose) {
+                                std::cout << "Evaluating " << stack.front() << " / " << v1 << " = " << (stack.front() / v1) << std::endl;
+                            }
+
+                            stack.front() /= v1;
+                            done = true;
+
+                        }
+
+                        else if(c == '-') {
+                            int v1 = stack.front();
+                            stack.pop_front();
+
+                            if(verbose) {
+                                std::cout << "Evaluating " << stack.front() << " - " << v1 << " = " << (stack.front() - v1) << std::endl;
+                            }
+
+                            stack.front() -= v1;
+                            done = true;
+                        }
+
+                        else if(c == '%') {
+                            int v1 = stack.front();
+                            stack.pop_front();
+
+                            if(verbose) {
+                                std::cout << "Evaluating " << stack.front() << " % " << v1 << " = " << (stack.front() % v1) << std::endl;
+                            }
+
+                            stack.front() %= v1;
+                            done = true;
+                        }
+                        
+                        else {
+                            // NYI
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
+
+            i2++;
         }
 
-        ++i;
+        if(done) {
+            for(int a = i; a < i2; ++a) {
+                delete state[a];
+                if(a - i <= stack.size()) {
+                    state[a] = new PushIntAction(stack.back());
+                    stack.pop_back();
+                } else {
+                    state.getVect().erase(state.begin() + a);
+                    a--;
+                    i2--;
+                }
+            }
+        }
+    };
+
+    if(bypass) {
+        int i = 0;
+        for(auto& state : parsedStates) {
+            if(state.canBeBypassed()) {
+                int s = i;
+                do {
+                    s = parsedStates[s][0]->getLinkedStates()[0];
+                } while(parsedStates[s].canBeBypassed());
+                state.setBypass(s);
+
+                if(verbose) {
+                    std::cout << "Adding state bypass: " << i << " -> " << s << std::endl;
+                }
+            }
+
+            ++i;
+        }
     }
 
     for(auto& state : parsedStates) {
         if(!state.bypassed()) {
-            for(Action* action : state) {
-                int i = 0;
-                for(int s : action->getLinkedStates()) {
-                    if(parsedStates[s].bypassed()) {
-                        action->setLinkedState(i, parsedStates[s].getBypass());
+            for(int i = 0; i < state.size(); ++i) {
+                if(eval) {
+                    if(state[i]->isNumber()) {
+                        attemptEval(state, i);
                     }
-                    ++i;
+                }
+
+                if(bypass) {
+                    int link = 0;
+                    for(int s : state[i]->getLinkedStates()) {
+                        if(parsedStates[s].bypassed()) {
+                            state[i]->setLinkedState(link, parsedStates[s].getBypass());
+                        }
+                        ++link;
+                    }
                 }
             }
         }

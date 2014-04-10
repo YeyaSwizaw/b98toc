@@ -21,10 +21,13 @@ public:
     int getBypass();
 
     void push_back(Action* action);
+    int size();
 
     auto end() -> decltype(actions.end());
     auto begin() -> decltype(actions.begin());
     auto operator[](int i) -> decltype(actions[i]);
+
+    std::vector<Action*>& getVect();
 };
 
 B98_NS_END

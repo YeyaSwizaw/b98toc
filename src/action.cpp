@@ -2,6 +2,25 @@
 
 B98_NS_BEGIN
 
+Action::Action(bool number, bool arith) 
+    : number(number), arith(arith) {};
+
+bool Action::isNumber() {
+    return number;
+}
+
+bool Action::isArith() {
+    return arith;
+}
+
+int Action::getNumber() {
+    return 0;
+}
+
+char Action::getArith() {
+    return ' ';
+}
+
 std::vector<int>& Action::getLinkedStates() {
     return linkedStates;
 }
@@ -11,7 +30,7 @@ void Action::setLinkedState(int index, int state) {
 }
 
 PushCharAction::PushCharAction(char c)
-    : c(c) {}
+    : Action(), c(c) {}
 
 void PushCharAction::output(std::ostream& out, bool& int1, bool& int2) {
     out << "    stackPush(stack, '";
@@ -21,22 +40,34 @@ void PushCharAction::output(std::ostream& out, bool& int1, bool& int2) {
     out << c << "');" << std::endl;
 }
 
-PushIntAction::PushIntAction(char c)
-    : c(c) {}
+PushIntAction::PushIntAction(int c)
+    : Action(true), c(c) {}
+
+int PushIntAction::getNumber() {
+    return c;
+}
 
 void PushIntAction::output(std::ostream& out, bool& int1, bool& int2) {
     out << "    stackPush(stack, " << c << ");" << std::endl;
 }
 
 PushHexAction::PushHexAction(char c)
-    : c(c) {}
+    : Action(true), c(c) {}
+
+int PushHexAction::getNumber() {
+    return c - 'W';
+}
 
 void PushHexAction::output(std::ostream& out, bool& int1, bool& int2) {
     out << "    stackPush(stack, 0x" << c << ");" << std::endl;
 }
 
 ArithmeticAction::ArithmeticAction(char c)
-    : c(c) {}
+    : Action(false, true), c(c) {}
+
+char ArithmeticAction::getArith() {
+    return c;
+}
 
 void ArithmeticAction::output(std::ostream& out, bool& int1, bool& int2) {
     if(c == '+' || c == '*') {
@@ -144,7 +175,7 @@ void NextStateAction::output(std::ostream& out, bool& int1, bool& int2) {
 }
 
 ReturnAction::ReturnAction(int ret)
-    : ret(ret) {};
+    : Action(), ret(ret) {};
 
 void ReturnAction::output(std::ostream& out, bool& int1, bool& int2) {
     out << "    return " << ret << ";" << std::endl;

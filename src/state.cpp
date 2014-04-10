@@ -29,6 +29,10 @@ void State::push_back(Action* action) {
     actions.push_back(action);
 }
 
+int State::size() {
+    return actions.size();
+}
+
 auto State::end() -> decltype(this->actions.end()) {
     return actions.end();
 }
@@ -39,6 +43,10 @@ auto State::begin() -> decltype(this->actions.begin()) {
 
 auto State::operator[](int i) -> decltype(this->actions[i]) {
     return actions[i];
+}
+
+std::vector<Action*>& State::getVect() {
+    return actions;
 }
 
 B98_NS_END

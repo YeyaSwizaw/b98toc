@@ -9,6 +9,7 @@
 #include "dir.hpp"
 
 #include <utility>
+#include <stack>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -30,7 +31,8 @@ private:
         Dir* dir;
     };
 
-    bool verbose, opt;
+    bool verbose;
+    bool bypass, eval;
 
     std::string inFile, outSource, outHeader;
 
