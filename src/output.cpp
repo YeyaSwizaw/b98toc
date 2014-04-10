@@ -21,8 +21,10 @@ int Parser::generateHeader() {
             << "#include \"stack.h\"" << std::endl << std::endl;
 
     /* State definitions */
-    for(decltype(stateStarts)::size_type state = 0; state < stateStarts.size(); ++state) {
-        content << "int state" << state << "(Stack* stack);" << std::endl;
+    for(decltype(parsedStates)::size_type state = 0; state < parsedStates.size(); ++state) {
+        if(!parsedStates[state].bypassed()) {
+            content << "int state" << state << "(Stack* stack);" << std::endl;
+        }
     }
 
     content << std::endl << "#endif" << std::endl;
@@ -46,15 +48,17 @@ int Parser::generateSource() {
     content << "#include \"" << outHeader << "\"" << std::endl << std::endl;
 
     for(decltype(parsedStates)::size_type state = 0; state < parsedStates.size(); ++state) {
-        content << "int state" << state << "(Stack* stack) {" << std::endl;
+        if(!parsedStates[state].bypassed()) {
+            content << "int state" << state << "(Stack* stack) {" << std::endl;
 
-        bool int1 = false;
-        bool int2 = false;
-        for(Action* act : parsedStates[state]) {
-            act->output(content, int1, int2);
+            bool int1 = false;
+            bool int2 = false;
+            for(Action* act : parsedStates[state]) {
+                act->output(content, int1, int2);
+            }
+
+            content << "}" << std::endl << std::endl;
         }
-
-        content << "}" << std::endl << std::endl;
     }
 
     content << "int main(int argc, char* argv[]) {" << std::endl

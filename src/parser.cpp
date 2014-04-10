@@ -45,6 +45,12 @@ int Parser::run(int argc, char* argv[]) {
         return -1;
     }
 
+    if(opt) {
+        if(optimize() < 0) {
+            return -1;
+        }
+    }
+
     if(generateOutput() < 0) {
         return -1;
     }
@@ -60,6 +66,11 @@ int Parser::parseArgs(int argc, char* argv[]) {
             "v", "verbose",
             "Produce console output while parsing");
 
+        TCLAP::SwitchArg optArg(
+            "n", "no-optimize",
+            "Don't run the optimisation step (removes empty states)",
+            true);
+
         TCLAP::ValueArg<std::string> outFileArg(
             "o", "output", 
             "The name for the produced .c and .h files", 
@@ -73,11 +84,13 @@ int Parser::parseArgs(int argc, char* argv[]) {
             "filename");
 
         cmd.add(verboseArg);
+        cmd.add(optArg);
         cmd.add(outFileArg);
         cmd.add(inFileArg);
         cmd.parse(argc, argv);
 
         verbose = verboseArg.getValue();
+        opt = optArg.getValue();
         inFile = inFileArg.getValue();
         outSource = outFileArg.getValue() + ".c";
         outHeader = outFileArg.getValue() + ".h";
@@ -315,7 +328,7 @@ int Parser::createStates() {
 
 int Parser::parse() {
     for(decltype(stateStarts)::size_type state = 0; state < stateStarts.size(); ++state) {
-        parsedStates.push_back(std::vector<Action*>());
+        parsedStates.push_back(State());
         if(parseState(state) < 0) {
             return -1;
         }
@@ -465,6 +478,46 @@ int Parser::parseState(int state) {
         } else {
             x = addSafe(x, (!stringmode && c == '#' ? 2 : 1) * dir->dx, maxX);
             y = addSafe(y, (!stringmode && c == '#' ? 2 : 1) * dir->dy, maxY);
+        }
+    }
+
+    return 0;
+}
+
+int Parser::optimize() {
+    if(verbose) {
+        std::cout << "Running Optimization Step:" << std::endl;
+
+    }
+
+    int i = 0;
+    for(auto& state : parsedStates) {
+        if(state.canBeBypassed()) {
+            int s = i;
+            do {
+                s = parsedStates[s][0]->getLinkedStates()[0];
+            } while(parsedStates[s].canBeBypassed());
+            state.setBypass(s);
+
+            if(verbose) {
+                std::cout << "Adding state bypass: " << i << " -> " << s << std::endl;
+            }
+        }
+
+        ++i;
+    }
+
+    for(auto& state : parsedStates) {
+        if(!state.bypassed()) {
+            for(Action* action : state) {
+                int i = 0;
+                for(int s : action->getLinkedStates()) {
+                    if(parsedStates[s].bypassed()) {
+                        action->setLinkedState(i, parsedStates[s].getBypass());
+                    }
+                    ++i;
+                }
+            }
         }
     }
 

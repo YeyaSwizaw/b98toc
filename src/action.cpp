@@ -135,11 +135,12 @@ void CompareAction::output(std::ostream& out, bool& int1, bool& int2) {
         << "    }" << std::endl;
 }
 
-NextStateAction::NextStateAction(int state)
-    : state(state) {};
+NextStateAction::NextStateAction(int state) {
+    linkedStates.push_back(state);
+}
 
 void NextStateAction::output(std::ostream& out, bool& int1, bool& int2) {
-    out << "    return state" << state << "(stack);" << std::endl;
+    out << "    return state" << linkedStates[0] << "(stack);" << std::endl;
 }
 
 ReturnAction::ReturnAction(int ret)

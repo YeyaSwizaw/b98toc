@@ -110,9 +110,6 @@ public:
     NextStateAction(int state);
 
     virtual void output(std::ostream& out, bool& int1, bool& int2);
-
-private:
-    int state;
 };
 
 class ReturnAction : public Action {

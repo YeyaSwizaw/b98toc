@@ -4,6 +4,7 @@
 #include <tclap/CmdLine.h>
 
 #include "defines.hpp"
+#include "state.hpp"
 #include "action.hpp"
 #include "dir.hpp"
 
@@ -29,7 +30,7 @@ private:
         Dir* dir;
     };
 
-    bool verbose;
+    bool verbose, opt;
 
     std::string inFile, outSource, outHeader;
 
@@ -37,7 +38,7 @@ private:
     std::vector<std::vector<std::vector<int>>> stategrid;
 
     std::vector<Location> stateStarts;
-    std::vector<std::vector<Action*>> parsedStates;
+    std::vector<State> parsedStates;
 
     int parseArgs(int argc, char* argv[]);
     int readFile();
@@ -45,6 +46,8 @@ private:
     int createStates();
     int parse();
     int parseState(int state);
+
+    int optimize();
 
     int generateOutput();
     int generateHeader();
