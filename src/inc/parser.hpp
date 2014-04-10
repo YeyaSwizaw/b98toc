@@ -32,7 +32,10 @@ private:
     };
 
     bool verbose;
-    bool bypass, eval;
+
+    bool variables;
+    bool bypass;
+    bool eval;
 
     std::string inFile, outSource, outHeader;
 

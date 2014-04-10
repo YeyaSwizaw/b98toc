@@ -63,8 +63,12 @@ int Parser::parseArgs(int argc, char* argv[]) {
         TCLAP::CmdLine cmd("Befunge98 to C parser");
 
         TCLAP::SwitchArg verboseArg(
-            "v", "verbose",
+            "V", "verbose",
             "Produce console output while parsing");
+
+        TCLAP::SwitchArg varArg(
+            "v", "enable-variables",
+            "Enable variables using 'p' and 'g' (non-standard befunge)");
 
         TCLAP::SwitchArg bypassArg(
             "", "no-bypasss",
@@ -89,6 +93,7 @@ int Parser::parseArgs(int argc, char* argv[]) {
             "filename");
 
         cmd.add(verboseArg);
+        cmd.add(varArg);
         cmd.add(bypassArg);
         cmd.add(evalArg);
         cmd.add(outFileArg);
@@ -96,6 +101,7 @@ int Parser::parseArgs(int argc, char* argv[]) {
         cmd.parse(argc, argv);
 
         verbose = verboseArg.getValue();
+        variables = varArg.getValue();
         bypass = bypassArg.getValue();
         eval = evalArg.getValue();
         inFile = inFileArg.getValue();
@@ -450,6 +456,14 @@ int Parser::parseState(int state) {
 
             else if(c == '~') {
                 parsedStates.back().push_back(new InputCharAction());
+            }
+
+            else if(variables && c == 'p') {
+                parsedStates.back().push_back(new TablePutAction());
+            }
+
+            else if(variables && c == 'g') {
+                parsedStates.back().push_back(new TableGetAction());
             }
 
             else if(c == '_' || c == '|') {

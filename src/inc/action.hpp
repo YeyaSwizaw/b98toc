@@ -23,7 +23,7 @@ public:
     virtual std::vector<int>& getLinkedStates();
     virtual void setLinkedState(int index, int state);
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2) = 0;
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2) = 0;
 
 protected:
     std::vector<int> linkedStates;
@@ -34,7 +34,7 @@ class PushCharAction : public Action {
 public:
     PushCharAction(char c);
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 
 private:
     char c;
@@ -46,7 +46,7 @@ public:
 
     virtual int getNumber();
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 
 private:
     int c;
@@ -58,7 +58,7 @@ public:
 
     virtual int getNumber();
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 
 private:
     char c;
@@ -70,7 +70,7 @@ public:
 
     virtual char getArith();
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 
 private:
     char c;
@@ -78,63 +78,73 @@ private:
 
 class SwapAction : public Action {
 public:
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class PopAction : public Action {
 public:
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class DuplicateAction : public Action {
 public:
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class OutputCharAction : public Action {
 public:
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class OutputIntAction : public Action {
 public:
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class InputCharAction : public Action {
 public:
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class ZeroCheckAction : public Action {
 public:
     ZeroCheckAction(int ifstate, int elsestate);
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class CompareAction : public Action {
 public:
     CompareAction(int fd, int lt, int rt);
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class NextStateAction : public Action {
 public:
     NextStateAction(int state);
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 class ReturnAction : public Action {
 public:
     ReturnAction(int ret);
 
-    virtual void output(std::ostream& out, bool& int1, bool& int2);
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 
 private:
     int ret;
+};
+
+class TablePutAction : public Action {
+public:
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
+};
+
+class TableGetAction : public Action {
+public:
+    virtual void output(std::ostream& out, bool vars, bool& int1, bool& int2);
 };
 
 B98_NS_END
