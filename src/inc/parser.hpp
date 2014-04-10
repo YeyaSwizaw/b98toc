@@ -49,7 +49,6 @@ private:
     int generateOutput();
     int generateHeader();
     int generateSource();
-    int generateState(std::ostringstream& content, int state);
 };
 
 B98_NS_END
