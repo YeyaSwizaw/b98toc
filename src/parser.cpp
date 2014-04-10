@@ -29,7 +29,7 @@ int Parser::run(int argc, char* argv[]) {
         std::cout << std::endl;
     }
 
-    if(parse() < 0) {
+    if(createStates() < 0) {
         return -1;
     }
 
@@ -39,6 +39,10 @@ int Parser::run(int argc, char* argv[]) {
             std::cout << i << ": (" << stateStarts[i].x << ", " << stateStarts[i].y << ") delta(" << stateStarts[i].dir->dx << ", " << stateStarts[i].dir->dy << ")" << std::endl;
         }
         std::cout << std::endl;
+    }
+
+    if(parse() < 0) {
+        return -1;
     }
 
     if(generateOutput() < 0) {
@@ -122,7 +126,7 @@ int Parser::readFile() {
     return 0;
 }
 
-int Parser::parse() {
+int Parser::createStates() {
     Dir* dir = &Dir::RIGHT;
     int x = 0;
     int y = 0;
@@ -307,6 +311,172 @@ int Parser::parse() {
     }
 
     return 0;
+}
+
+int Parser::parse() {
+    for(decltype(stateStarts)::size_type state = 0; state < stateStarts.size(); ++state) {
+        parsedStates.push_back(std::vector<Action*>());
+        if(parseState(state) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int Parser::parseState(int state) {
+    auto& start = stateStarts[state];
+    Dir* dir = start.dir;
+
+    int maxX = codegrid[0].size();
+    int maxY = codegrid.size();
+
+    auto addSafe = [](int val, int d, int max) { 
+        val += d;
+        if(val < 0) {
+            val += max;
+        } else if(val >= max) {
+            val -= max;
+        }
+        return val;
+    };
+
+    int x = addSafe(start.x, dir->dx, maxX);
+    int y = addSafe(start.y, dir->dy, maxY);
+
+    auto stateWithStart = [&x, &y, this](Dir* dir) {
+        decltype(stateStarts)::size_type res = 0;
+        for(; res < stateStarts.size(); ++res) {
+            if(x == stateStarts[res].x 
+                && y == stateStarts[res].y 
+                && stateStarts[res].dir->index == dir->index) {
+
+                break;
+            }
+        }
+        return res;
+    };
+
+    bool stringmode = false;
+    bool getnextchar = false;
+
+    while(true) {
+        char& c = codegrid[y][x];
+
+        if(c == '"') {
+            stringmode = !stringmode;
+        }
+
+        if(stringmode && c != '"') {
+            state = stategrid[y][x][dir->index];
+            parsedStates.back().push_back(new PushCharAction(c));
+        }
+
+        else {
+            if(c == '>') {
+                dir = &Dir::RIGHT;
+            } else if(c == '<') {
+                dir = &Dir::LEFT;
+            } else if(c == '^') {
+                dir = &Dir::UP;
+            } else if(c == 'v') {
+                dir = &Dir::DOWN;
+            } else if(c == '[') {
+                dir = dir->left;
+            } else if(c == ']') {
+                dir = dir->right;
+            }
+
+            if(stategrid[y][x][dir->index] != state) {
+                parsedStates.back().push_back(new NextStateAction(stategrid[y][x][dir->index]));
+                return 0;
+            }
+
+            if(c == '\'') {
+                getnextchar = true;
+            }
+
+            else if(c >= '0' && c <= '9') {
+                parsedStates.back().push_back(new PushIntAction(c));
+            }
+
+            else if(c >= 'a' && c <= 'f') {
+                parsedStates.back().push_back(new PushHexAction(c));
+            }
+
+            else if(c == '-' || c == '/' || c == '%' || c == '+' || c == '*' ) {
+                parsedStates.back().push_back(new ArithmeticAction(c));
+            }
+
+            else if(c == '\\') {
+                parsedStates.back().push_back(new SwapAction());
+            }
+
+            else if(c == '$') {
+                parsedStates.back().push_back(new PopAction());
+            }
+
+            else if(c == ':') {
+                parsedStates.back().push_back(new DuplicateAction());
+            }
+
+            else if(c == ',') {
+                parsedStates.back().push_back(new OutputCharAction());
+            }
+
+            else if(c == '.') {
+                parsedStates.back().push_back(new OutputIntAction());
+            }
+
+            else if(c == '~') {
+                parsedStates.back().push_back(new InputCharAction());
+            }
+
+            else if(c == '_' || c == '|') {
+                parsedStates.back().push_back(new ZeroCheckAction(
+                    stateWithStart(c == '_' ? &Dir::RIGHT : &Dir::DOWN),
+                    stateWithStart(c == '_' ? &Dir::LEFT : &Dir::UP)));
+                return 0;
+            }
+
+            else if(c == 'w') {
+                parsedStates.back().push_back(new CompareAction(
+                    stateWithStart(dir),
+                    stateWithStart(dir->left),
+                    stateWithStart(dir->right)));
+                return 0;
+            }
+
+            else if(c == '@') {
+                parsedStates.back().push_back(new ReturnAction(0));
+                return 0;
+            }
+        }
+
+        if(getnextchar) {
+            x = addSafe(x, dir->dx, maxX);
+            y = addSafe(y, dir->dy, maxY);
+
+            parsedStates.back().push_back(new PushCharAction(codegrid[y][x]));
+
+            x = addSafe(x, dir->dx, maxX);
+            y = addSafe(y, dir->dy, maxY);
+            getnextchar = false;
+        } else {
+            x = addSafe(x, (!stringmode && c == '#' ? 2 : 1) * dir->dx, maxX);
+            y = addSafe(y, (!stringmode && c == '#' ? 2 : 1) * dir->dy, maxY);
+        }
+    }
+
+    return 0;
+}
+
+Parser::~Parser() {
+    for(auto& state : parsedStates) {
+        for(auto action : state) {
+            delete action;
+        }
+    }
 }
 
 B98_NS_END

@@ -45,11 +45,15 @@ int Parser::generateSource() {
 
     content << "#include \"" << outHeader << "\"" << std::endl << std::endl;
 
-    for(decltype(stateStarts)::size_type state = 0; state < stateStarts.size(); ++state) {
+    for(decltype(parsedStates)::size_type state = 0; state < parsedStates.size(); ++state) {
         content << "int state" << state << "(Stack* stack) {" << std::endl;
-        if(generateState(content, state) < 0) {
-            return -1;
+
+        bool int1 = false;
+        bool int2 = false;
+        for(Action* act : parsedStates[state]) {
+            act->output(content, int1, int2);
         }
+
         content << "}" << std::endl << std::endl;
     }
 
